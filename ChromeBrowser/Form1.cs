@@ -9,15 +9,21 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using CefSharp;
 using CefSharp.WinForms;
+using System.Data.SQLite;
+using System.Globalization;
+using System.Data.Entity.Migrations.History;
+using System.Security.Cryptography;
 
 namespace ChromeBrowser
 {
     public partial class Form1 : Form
     {
-     
+        
         public Form1()
         {
             InitializeComponent();
+    
+
         }
    
 
@@ -30,6 +36,7 @@ namespace ChromeBrowser
             browser.Parent = tabControl.SelectedTab;
             browser.Dock = DockStyle.Fill;
             browser.AddressChanged += Browser_AddressChanged;
+            browser.TitleChanged += Browser_TitleChanged;
 
         }
 
@@ -57,10 +64,47 @@ namespace ChromeBrowser
         }
 
         private void btnGo_Click(object sender, EventArgs e)
-        {   
+
+        {   tabControl.SelectTab(tabControl.TabCount -1);
             ChromiumWebBrowser browser = tabControl.SelectedTab.Controls[0] as ChromiumWebBrowser;
-            if (browser != null)
             browser.Load(txtUrl.Text);
+            browser.Parent = tabControl.SelectedTab;
+            browser.Dock = DockStyle.Fill;
+            if (browser != null)
+            {
+                browser.AddressChanged += Browser_AddressChanged;
+                browser.TitleChanged += Browser_TitleChanged;
+            }
+            
+            DateTime localDate = DateTime.Now;
+            var culture = new CultureInfo("en-US");
+            var entime = localDate.ToString(culture);
+            var title = tabControl.SelectedTab.Text;
+
+            try
+            {
+                //inserting the search into the history database
+                SQLiteConnection con = new SQLiteConnection(@"data source=D:\database\browser.db");
+                con.Open();
+                var cmd = new SQLiteCommand(con);
+                cmd.CommandText = "INSERT INTO history(Url,Title,Last_Visit) VALUES (@txtUrl,@title,@lvisit)";
+                
+                string Url = txtUrl.Text;
+                cmd.Parameters.AddWithValue("@txtUrl", Url);
+                cmd.Parameters.AddWithValue("@title", title);
+                cmd.Parameters.AddWithValue("@lvisit", entime);
+                cmd.ExecuteNonQuery();  
+              
+
+           
+
+            }   catch(Exception) 
+            {
+                Console.WriteLine("cannot insert data");
+            
+            }
+          
+
         }
 
         private void btnRefresh_Click(object sender, EventArgs e)
@@ -84,7 +128,7 @@ namespace ChromeBrowser
         {
             Cef.Shutdown();
         }
-
+      
         private void btnNewTab_Click(object sender, EventArgs e)
         {
             TabPage tab = new TabPage();
@@ -103,10 +147,11 @@ namespace ChromeBrowser
         {
             this.Invoke(new MethodInvoker(() =>
             {
+                tabControl.SelectTab(tabControl.TabCount - 1);
                 tabControl.SelectedTab.Text = e.Title;  
             }));
         }
-
+  
 
 
         private void tabPage1_Click(object sender, EventArgs e)
@@ -117,6 +162,17 @@ namespace ChromeBrowser
         private void tabPage1_Click_1(object sender, EventArgs e)
         {
 
+        }
+
+        private void btnHistory_Click(object sender, EventArgs e)
+        {   
+            Form2 historyWindow = new Form2();
+            historyWindow.Show();
+             
+
+          
+        
+           
         }
     }
 }
